@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Live Video Stream</title>
+</head>
+<body>
+    <h1>Live Video Stream</h1>
+    <button id="toggleButton">Toggle Boolean</button>
+    <p id="status">Current value: false</p>
+    <script>
+        let currentState = false;
+        const button = document.getElementById("toggleButton");
+        const status = document.getElementById("status");
+        button.addEventListener("click", function() {
+            // Toggle the boolean value
+            currentState = !currentState;
+            status.textContent = "Current value: " + currentState;
+            // Send the updated state to the server via POST request
+            fetch('/togglestream', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: ""
+            })
+            .then(response => response.text())
+            .then(data => console.log("Server response:", data))
+            .catch(error => console.error("Error:", error));
+        });
+    </script>
+    <img src="/video" alt="Live Video Stream">
+</body>
+</html>
