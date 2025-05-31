@@ -200,8 +200,8 @@ int main() {
 
     std::string pipeline =
         "libcamerasrc ! "
-        "video/x-raw,width=640,height=480,format=RGB,framerate=30/1 ! "
         "videoconvert ! "
+        "video/x-raw,format=BGR ! "
         "appsink sync=false max-buffers=1 drop=true";
 
     cv::VideoCapture video_capture(pipeline, cv::CAP_GSTREAMER);
@@ -244,6 +244,9 @@ int main() {
             std::this_thread::sleep_for(std::chrono::milliseconds(200));
             continue;
         }
+
+        // rgb to bgr
+        cv::cvtColor(frame, frame, cv::COLOR_RGB2BGR);
 
         // convert to grayscale for detection
         cv::cvtColor(frame, gray, cv::COLOR_BGR2GRAY);
