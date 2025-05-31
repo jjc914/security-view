@@ -196,17 +196,25 @@ int main() {
     // initialization
     httplib::Server server;
 
-    cv::VideoCapture video_capture(0);
+    std::string pipeline =
+        "libcamerasrc ! "
+        "video/x-raw,width=640,height=480,format=RGB,framerate=30/1 ! "
+        "videoconvert ! "
+        "appsink sync=false max-buffers=1 drop=true";
+
+    cv::VideoCapture video_capture(pipeline, cv::CAP_GSTREAMER);
     if (!video_capture.isOpened()) {
         std::cerr << "error: could not open camera." << std::endl;
         return -1;
     }
+    std::cout << "info: opened camera.\n";
 
     cv::CascadeClassifier head_cascade;
     if (!head_cascade.load("res/haarcascade_frontalface_default.xml")) {
         std::cerr << "error: could not load Haar cascade for head detection." << std::endl;
         return -1;
     }
+    std::cout << "info: loaded Haar cascade.\n";
 
     // define capture info
     const uint32_t frame_width = static_cast<int>(video_capture.get(cv::CAP_PROP_FRAME_WIDTH));
@@ -220,7 +228,7 @@ int main() {
     std::thread server_listening_thread = std::thread(server_listening_thread_func, std::ref(server));
     std::thread fps_thread = std::thread(fps_thread_func);
     std::thread recording_thread = std::thread(recording_thread_func, cv::Size(frame_width, frame_height));
-
+    std::cout << "info: started threads.\n";
     
     cv::Mat frame, gray;
     while (true) {
@@ -229,7 +237,11 @@ int main() {
 
         // capture frame
         video_capture >> frame;
-        if (frame.empty()) break; // nothing showing
+        if (frame.empty()) {
+            std::cout << "warning: no valid frame, sleeping 200ms and retrying" << std::endl;
+            std::this_thread::sleep_for(std::chrono::milliseconds(200));
+            continue;
+        }
 
         // convert to grayscale for detection
         cv::cvtColor(frame, gray, cv::COLOR_BGR2GRAY);
