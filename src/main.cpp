@@ -117,7 +117,7 @@ void server_listening_thread_func(httplib::Server& server) {
     std::cout << "[server] info: server is running on: http://"<< ip << ":" << port << "." << std::endl;
     std::thread listen_thread([&server]() {
         server.listen("0.0.0.0", 8080);
-    }
+    });
 
     while (!g_exit_server_thread.load()) {
         std::this_thread::sleep_for(std::chrono::milliseconds(200));
@@ -211,11 +211,6 @@ void recording_thread_func(const cv::Size frame_size) {
 }
 
 void signal_handler(int signum) {
-    std::cout << "[signal] caught signal " << signum << ", shutting down..." << std::endl;
-
-    video_capture.release();
-    cv::destroyAllWindows();
-
     g_is_head_detected.store(false);
     g_exit_recording_thread.store(true);
     g_exit_fps_thread.store(true);
@@ -256,6 +251,9 @@ int main() {
     // fps calculations
     const std::chrono::milliseconds target_frame_duration(1000 / (int)target_fps);
     auto fps_start = std::chrono::steady_clock::now();
+
+    std::signal(SIGINT, signal_handler);
+    std::signal(SIGTERM, signal_handler);
 
     // start threads
     std::thread server_listening_thread = std::thread(server_listening_thread_func, std::ref(server));
@@ -317,8 +315,6 @@ int main() {
         auto frame_elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(frame_end - frame_start);
         if (frame_elapsed < target_frame_duration) {
             std::this_thread::sleep_for(target_frame_duration - frame_elapsed);
-        } else {
-
         }
     }
 
