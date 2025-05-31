@@ -56,6 +56,7 @@ cv::Mat g_frame;
 std::mutex g_frame_mutex;
 std::atomic<bool> g_should_stream(false);
 void server_listening_thread_func(httplib::Server& server) {
+    std::cout << "[server] info: started server listening thread.\n";
     std::string ip = "0.0.0.0";
     uint16_t port = 8080;
 
@@ -104,8 +105,8 @@ void server_listening_thread_func(httplib::Server& server) {
         g_should_stream.store(!g_should_stream.load());
     });
 
+    std::cout << "[server] info: server is running on: http://"<< ip << ":" << port << "." << std::endl;
     server.listen("0.0.0.0", 8080);
-    std::cout << "server is running on: http://"<< ip << ":" << port << "." << std::endl;
 }
 
 // recording thread
@@ -120,6 +121,7 @@ std::atomic<bool> g_exit_recording_thread(false);
 std::atomic<bool> g_is_head_detected(false);
 void recording_thread_func(const cv::Size frame_size) {
     // parameters
+    std::cout << "[rec] info: started recording thread.\n";
     const float activate_time = 1; // seconds
     const float deactivate_time = 2;
     const float prerecord_buffer = 2;
@@ -207,14 +209,14 @@ int main() {
         std::cerr << "error: could not open camera." << std::endl;
         return -1;
     }
-    std::cout << "info: opened camera.\n";
+    std::cout << "[main] info: opened camera.\n";
 
     cv::CascadeClassifier head_cascade;
     if (!head_cascade.load("res/haarcascade_frontalface_default.xml")) {
         std::cerr << "error: could not load Haar cascade for head detection." << std::endl;
         return -1;
     }
-    std::cout << "info: loaded Haar cascade.\n";
+    std::cout << "[main] info: loaded Haar cascade.\n";
 
     // define capture info
     const uint32_t frame_width = static_cast<int>(video_capture.get(cv::CAP_PROP_FRAME_WIDTH));
@@ -228,8 +230,8 @@ int main() {
     std::thread server_listening_thread = std::thread(server_listening_thread_func, std::ref(server));
     std::thread fps_thread = std::thread(fps_thread_func);
     std::thread recording_thread = std::thread(recording_thread_func, cv::Size(frame_width, frame_height));
-    std::cout << "info: started threads.\n";
     
+    std::cout << "[main] info: starting frame recording.\n";
     cv::Mat frame, gray;
     while (true) {
         // frame start info
