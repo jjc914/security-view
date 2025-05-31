@@ -1,6 +1,12 @@
 #include <opencv2/opencv.hpp>
 #include <httplib.h>
 
+// ncnn
+#include <net.h>
+#include <mat.h>
+#include <layer.h>
+
+// std
 #include <iostream>
 #include <filesystem>
 #include <fstream>
@@ -15,6 +21,7 @@
 #include <thread>
 #include <mutex>
 #include <atomic>
+#include <csignal>
 
 std::string current_date_time_str() {
     auto now = std::chrono::system_clock::now();
@@ -39,10 +46,10 @@ std::string read_file(const std::string& path) {
 // fps thread
 std::atomic<int> g_frame_count(0);
 std::atomic<int> g_fps(0);
-
 std::atomic<bool> g_exit_fps_thread(false);
 void fps_thread_func() {
     g_exit_fps_thread.store(false);
+    std::cout << "[fps] info: started fps calculation thread.\n";
     while (!g_exit_fps_thread.load()) {
         int start_count = g_frame_count.load();
         std::this_thread::sleep_for(std::chrono::seconds(1));
@@ -55,7 +62,9 @@ void fps_thread_func() {
 cv::Mat g_frame;
 std::mutex g_frame_mutex;
 std::atomic<bool> g_should_stream(false);
+std::atomic<bool> g_exit_server_thread(false);
 void server_listening_thread_func(httplib::Server& server) {
+    g_exit_server_thread.store(false);
     std::cout << "[server] info: started server listening thread.\n";
     std::string ip = "0.0.0.0";
     uint16_t port = 8080;
@@ -106,7 +115,18 @@ void server_listening_thread_func(httplib::Server& server) {
     });
 
     std::cout << "[server] info: server is running on: http://"<< ip << ":" << port << "." << std::endl;
-    server.listen("0.0.0.0", 8080);
+    std::thread listen_thread([&server]() {
+        server.listen("0.0.0.0", 8080);
+    }
+
+    while (!g_exit_server_thread.load()) {
+        std::this_thread::sleep_for(std::chrono::milliseconds(200));
+    }
+
+    std::cout << "[server] info: stopping server..." << std::endl;
+    server.stop();
+    listen_thread.join();
+
 }
 
 // recording thread
@@ -114,7 +134,6 @@ struct FrameEntry {
     cv::Mat frame;
     std::chrono::time_point<std::chrono::steady_clock> steady_time;
 };
-
 std::queue<FrameEntry> g_recording_queue;
 std::mutex g_recording_queue_mutex;
 std::atomic<bool> g_exit_recording_thread(false);
@@ -189,6 +208,18 @@ void recording_thread_func(const cv::Size frame_size) {
             is_first_found = false;
         }
     }
+}
+
+void signal_handler(int signum) {
+    std::cout << "[signal] caught signal " << signum << ", shutting down..." << std::endl;
+
+    video_capture.release();
+    cv::destroyAllWindows();
+
+    g_is_head_detected.store(false);
+    g_exit_recording_thread.store(true);
+    g_exit_fps_thread.store(true);
+    g_exit_server_thread.store(true);
 }
 
 int main() {
