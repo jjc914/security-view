@@ -10,7 +10,15 @@ find_package(OpenCV REQUIRED)
 find_package(OpenSSL REQUIRED)
 find_package(ncnn REQUIRED)
 
-add_executable(${PROJECT_NAME} src/main.cpp)
+add_executable(${PROJECT_NAME} src/main.cpp
+    src/globals.hpp src/globals.cpp
+    src/types.hpp
+    src/utils.hpp
+    src/threads/fps.hpp
+    src/threads/server.hpp
+    src/threads/recording.hpp
+    src/threads/detection.hpp
+)
 
 target_include_directories(${PROJECT_NAME} PRIVATE ${OpenCV_INCLUDE_DIRS} ${OPENSSL_INCLUDE_DIR} vendor/cpp-httplib)
 target_link_libraries(${PROJECT_NAME} PRIVATE ${OpenCV_LIBS} OpenSSL::SSL OpenSSL::Crypto ncnn)
