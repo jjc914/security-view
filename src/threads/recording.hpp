@@ -10,13 +10,13 @@
 #include "../globals.hpp"
 
 void recording_thread_func(const cv::Size frame_size) {
-    // parameters
+    g_exit_recording_thread.store(false);
     std::cout << "[rec] info: starting recording thread.\n";
+
+    // parameters
     const float activate_time = 1; // seconds
     const float deactivate_time = 2;
     const float prerecord_buffer = 2;
-
-    g_exit_recording_thread.store(false);
 
     const int fourcc = cv::VideoWriter::fourcc('M', 'J', 'P', 'G');
 
@@ -37,7 +37,7 @@ void recording_thread_func(const cv::Size frame_size) {
         }
 
         // check if should start recording
-        if (g_is_head_detected.load()) {
+        if (g_should_record.load()) {
             if (!is_first_found) {
                 // first head detected, start the timer
                 std::cout << "[rec] info: detected head, starting timer" << std::endl;
@@ -45,7 +45,7 @@ void recording_thread_func(const cv::Size frame_size) {
                 is_first_found = true;
             }
 
-            // if time 
+            // wait for detected for some period
             if ((steady_now - first_found_time) >= std::chrono::duration<float>(activate_time)) {
                 // activate recording
                 std::string now_str = current_date_time_str();
@@ -58,7 +58,7 @@ void recording_thread_func(const cv::Size frame_size) {
                 // keep recording until not
                 std::chrono::time_point<std::chrono::steady_clock> last_found_time = first_found_time;
                 while ((std::chrono::steady_clock::now() - last_found_time) <= std::chrono::duration<float>(deactivate_time)) {
-                    if (g_is_head_detected.load()) {
+                    if (g_should_record.load()) {
                         last_found_time = std::chrono::steady_clock::now();
                     }
                     // write all buffered data

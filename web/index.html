@@ -1,31 +1,124 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-    <title>Live Video Stream</title>
+    <meta charset="UTF-8">
+    <title>Live Video Debug Streams</title>
+    <style>
+        body {
+            margin: 0;
+            font-family: sans-serif;
+        }
+        .grid-container {
+            display: grid;
+            grid-template-columns: 2fr 1fr;
+            grid-template-rows: auto 1fr;
+            grid-gap: 1rem;
+            padding: 1rem;
+            height: 100vh;
+            box-sizing: border-box;
+        }
+
+        .video-streams {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            grid-gap: 1rem;
+            grid-column: 1 / 2;
+            grid-row: 1 / 3;
+        }
+
+        .stream-box {
+            border: 1px solid #ccc;
+            border-radius: 6px;
+            padding: 0.5rem;
+            background-color: #fff;
+        }
+
+        .stream-box h4 {
+            margin: 0 0 0.5rem 0;
+            font-size: 1rem;
+            text-align: center;
+        }
+
+        .stream-box img {
+            width: 100%;
+            height: auto;
+            border-radius: 4px;
+        }
+
+        .controls {
+            grid-column: 2 / 3;
+            grid-row: 1 / 2;
+        }
+
+        .debug-panel {
+            grid-column: 2 / 3;
+            grid-row: 2 / 3;
+            overflow-y: auto;
+            background-color: #f4f4f4;
+            padding: 1rem;
+            border-radius: 8px;
+            border: 1px solid #ccc;
+        }
+
+        button {
+            padding: 0.5rem 1rem;
+            font-size: 1rem;
+        }
+
+        .status {
+            margin-top: 0.5rem;
+        }
+    </style>
 </head>
 <body>
-    <h1>Live Video Stream</h1>
-    <button id="toggleButton">Toggle Boolean</button>
-    <p id="status">Current value: false</p>
+    <div class="grid-container">
+
+        <div class="video-streams">
+            <div class="stream-box">
+                <h4>Raw Camera Feed</h4>
+                <img src="/video_raw" alt="Raw Video Stream">
+            </div>
+            <div class="stream-box">
+                <h4>Face Detection</h4>
+                <img src="/video_retina" alt="Face Detection Stream">
+            </div>
+        </div>
+
+        <div class="controls">
+            <button id="toggleButton">Toggle Boolean</button>
+            <p id="status" class="status">Current value: false</p>
+        </div>
+
+        <div class="debug-panel">
+            <h3>Debug Info</h3>
+            <div id="debug-output">No debug messages yet.</div>
+        </div>
+    </div>
+
     <script>
         let currentState = false;
         const button = document.getElementById("toggleButton");
         const status = document.getElementById("status");
-        button.addEventListener("click", function() {
-            // Toggle the boolean value
+        const debugOutput = document.getElementById("debug-output");
+
+        button.addEventListener("click", function () {
             currentState = !currentState;
             status.textContent = "Current value: " + currentState;
-            // Send the updated state to the server via POST request
             fetch('/togglestream', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: ""
             })
             .then(response => response.text())
-            .then(data => console.log("Server response:", data))
-            .catch(error => console.error("Error:", error));
+            .then(data => {
+                console.log("Server response:", data);
+                debugOutput.textContent = "Server response: " + data;
+            })
+            .catch(error => {
+                console.error("Error:", error);
+                debugOutput.textContent = "Error: " + error;
+            });
         });
     </script>
-    <img src="/video" alt="Live Video Stream">
 </body>
 </html>

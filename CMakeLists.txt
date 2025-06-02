@@ -17,8 +17,11 @@ add_executable(${PROJECT_NAME} src/main.cpp
     src/threads/fps.hpp
     src/threads/server.hpp
     src/threads/recording.hpp
-    src/threads/detection.hpp
+    src/threads/retina.hpp
+    src/threads/embedding.hpp
 )
 
 target_include_directories(${PROJECT_NAME} PRIVATE ${OpenCV_INCLUDE_DIRS} ${OPENSSL_INCLUDE_DIR} vendor/cpp-httplib)
 target_link_libraries(${PROJECT_NAME} PRIVATE ${OpenCV_LIBS} OpenSSL::SSL OpenSSL::Crypto ncnn)
+
+add_subdirectory(tools)

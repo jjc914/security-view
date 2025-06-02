@@ -1,20 +1,18 @@
 #include <opencv2/opencv.hpp>
 
-#include <net.h>
-#include <mat.h>
-#include <layer.h>
-
 #include "utils.hpp"
 #include "threads/fps.hpp"
 #include "threads/server.hpp"
 #include "threads/recording.hpp"
-#include "threads/detection.hpp"
+#include "threads/retina.hpp"
+#include "threads/embedding.hpp"
 
 #include <iostream>
 #include <chrono>
 #include <string>
 #include <thread>
 #include <mutex>
+#include <csignal>
 
 #include "globals.hpp"
 
@@ -56,7 +54,8 @@ int main() {
     std::thread fps_thread = std::thread(fps_thread_func);
     std::thread recording_thread = std::thread(recording_thread_func, cv::Size(frame_width, frame_height));
     std::thread detection_thread = std::thread(detection_thread_func);
-    
+    std::thread embedding_thread = std::thread(embedding_thread_func);
+
     std::cout << "[main] info: starting frame recording.\n";
     cv::Mat frame, gray;
     while (!g_exit_main_thread.load()) {
@@ -70,9 +69,6 @@ int main() {
             std::this_thread::sleep_for(std::chrono::milliseconds(200));
             continue;
         }
-
-        // rgb to bgr
-        cv::cvtColor(frame, frame, cv::COLOR_RGB2BGR);
         
         // end frame
         g_frame_count.fetch_add(1);
@@ -87,6 +83,10 @@ int main() {
             g_recording_buffer.push({ frame.clone(), frame_end });
         }
 
+        { std::lock_guard<std::mutex> lock(g_streaming_buffer_mutex);
+            g_streaming_buffer = std::move(frame);
+        }
+
         // sleep for target fps
         auto frame_elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(frame_end - frame_start);
         if (frame_elapsed < target_frame_duration) {
@@ -96,11 +96,14 @@ int main() {
 
     video_capture.release();
     cv::destroyAllWindows();
+
+    g_exit_embedding_thread.store(true);
+    embedding_thread.join();
     
     g_exit_detection_thread.store(true);
     detection_thread.join();
 
-    g_is_head_detected.store(false);
+    g_should_record.store(false);
     g_exit_recording_thread.store(true);
     recording_thread.join();
 
