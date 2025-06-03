@@ -24,8 +24,16 @@ void server_thread_func(void) {
     httplib::Server server;
 
     server.Get("/video_raw", [&](const httplib::Request& req, httplib::Response& res) {
-        // set the mime type to indicate multipart mjpeg stream
         res.set_header("Content-Type", "multipart/x-mixed-replace; boundary=frame");
+
+        cv::Mat fallback_img = cv::imread("web/dc.png");
+        std::vector<uchar> fallback_buf;
+        std::vector<int> params = { cv::IMWRITE_JPEG_QUALITY, 80 };
+        if (!fallback_img.empty()) {
+            cv::imencode(".jpg", fallback_img, fallback_buf, params);
+        } else {
+            std::cerr << "Warning: could not load fallback image from res/dc.png\n";
+        }
 
         res.set_content_provider(
             "multipart/x-mixed-replace; boundary=frame",
@@ -36,25 +44,27 @@ void server_thread_func(void) {
 
                 while (sink.is_writable()) {
                     if (g_exit_server_thread.load()) break;
-                    // if (!g_should_stream.load()) continue;
                     
                     cv::Mat frame;
                     { std::lock_guard<std::mutex> lock(g_streaming_buffer_mutex);
-                        if (g_streaming_buffer.empty()) continue;
-                        frame = g_streaming_buffer.clone();
+                        if (!g_streaming_buffer.empty())
+                            frame = g_streaming_buffer.clone();
                     }
-                    // Encode the captured frame as JPEG.
-                    cv::imencode(".jpg", frame, buf, params);
 
-                    // Build the multipart frame header.
+                    if (!frame.empty()) {
+                        cv::imencode(".jpg", frame, buf, params);
+                    } else {
+                        buf = fallback_buf; // use fallback image
+                    }
+                    if (buf.empty()) continue;
+
                     std::string header = "--frame\r\nContent-Type: image/jpeg\r\nContent-Length: " +
                                         std::to_string(buf.size()) + "\r\n\r\n";
-                    // Write the header, JPEG data, and a trailing newline.
-                    if (!sink.write(header.c_str(), header.size()))
+                    if (!sink.write(header.c_str(), header.size())) // header
                         break;
-                    if (!sink.write(reinterpret_cast<const char*>(buf.data()), buf.size()))
+                    if (!sink.write(reinterpret_cast<const char*>(buf.data()), buf.size())) // jpeg data
                         break;
-                    if (!sink.write("\r\n", 2))
+                    if (!sink.write("\r\n", 2)) // trailing newline
                         break;
                 }
                 return true;
@@ -62,9 +72,17 @@ void server_thread_func(void) {
         );
     });
 
-    server.Get("/video_retina", [&](const httplib::Request& req, httplib::Response& res) {
-        // set the mime type to indicate multipart mjpeg stream
+    server.Get("/video_retina_output", [&](const httplib::Request& req, httplib::Response& res) {
         res.set_header("Content-Type", "multipart/x-mixed-replace; boundary=frame");
+
+        cv::Mat fallback_img = cv::imread("web/dc.png");
+        std::vector<uchar> fallback_buf;
+        std::vector<int> params = { cv::IMWRITE_JPEG_QUALITY, 80 };
+        if (!fallback_img.empty()) {
+            cv::imencode(".jpg", fallback_img, fallback_buf, params);
+        } else {
+            std::cerr << "Warning: could not load fallback image from res/dc.png\n";
+        }
 
         res.set_content_provider(
             "multipart/x-mixed-replace; boundary=frame",
@@ -75,25 +93,76 @@ void server_thread_func(void) {
 
                 while (sink.is_writable()) {
                     if (g_exit_server_thread.load()) break;
-                    // if (!g_should_stream.load()) continue;
                     
                     cv::Mat frame;
-                    { std::lock_guard<std::mutex> lock(g_retina_debug_buffer_mutex);
-                        if (g_retina_debug_buffer.empty()) continue;
-                        frame = g_retina_debug_buffer.clone();
+                    { std::lock_guard<std::mutex> lock(g_retina_debug_buffer_1_mutex);
+                        if (!g_retina_debug_buffer_1.empty())
+                            frame = g_retina_debug_buffer_1.clone();
                     }
-                    // Encode the captured frame as JPEG.
-                    cv::imencode(".jpg", frame, buf, params);
 
-                    // Build the multipart frame header.
+                    if (!frame.empty()) {
+                        cv::imencode(".jpg", frame, buf, params);
+                    } else {
+                        buf = fallback_buf; // use fallback image
+                    }
+                    if (buf.empty()) continue;
+
                     std::string header = "--frame\r\nContent-Type: image/jpeg\r\nContent-Length: " +
                                         std::to_string(buf.size()) + "\r\n\r\n";
-                    // Write the header, JPEG data, and a trailing newline.
-                    if (!sink.write(header.c_str(), header.size()))
+                    if (!sink.write(header.c_str(), header.size())) // header
                         break;
-                    if (!sink.write(reinterpret_cast<const char*>(buf.data()), buf.size()))
+                    if (!sink.write(reinterpret_cast<const char*>(buf.data()), buf.size())) // jpeg data
                         break;
-                    if (!sink.write("\r\n", 2))
+                    if (!sink.write("\r\n", 2)) // trailing newline
+                        break;
+                }
+                return true;
+            }
+        );
+    });
+
+    server.Get("/video_retina_input", [&](const httplib::Request& req, httplib::Response& res) {
+        res.set_header("Content-Type", "multipart/x-mixed-replace; boundary=frame");
+
+        cv::Mat fallback_img = cv::imread("web/dc.png");
+        std::vector<uchar> fallback_buf;
+        std::vector<int> params = { cv::IMWRITE_JPEG_QUALITY, 80 };
+        if (!fallback_img.empty()) {
+            cv::imencode(".jpg", fallback_img, fallback_buf, params);
+        } else {
+            std::cerr << "Warning: could not load fallback image from res/dc.png\n";
+        }
+
+        res.set_content_provider(
+            "multipart/x-mixed-replace; boundary=frame",
+            [&](size_t offset, httplib::DataSink &sink) -> bool {
+                // write data
+                std::vector<uchar> buf;
+                std::vector<int> params = { cv::IMWRITE_JPEG_QUALITY, 80 };
+
+                while (sink.is_writable()) {
+                    if (g_exit_server_thread.load()) break;
+                    
+                    cv::Mat frame;
+                    { std::lock_guard<std::mutex> lock(g_retina_debug_buffer_2_mutex);
+                        if (!g_retina_debug_buffer_2.empty())
+                            frame = g_retina_debug_buffer_2.clone();
+                    }
+
+                    if (!frame.empty()) {
+                        cv::imencode(".jpg", frame, buf, params);
+                    } else {
+                        buf = fallback_buf; // use fallback image
+                    }
+                    if (buf.empty()) continue;
+
+                    std::string header = "--frame\r\nContent-Type: image/jpeg\r\nContent-Length: " +
+                                        std::to_string(buf.size()) + "\r\n\r\n";
+                    if (!sink.write(header.c_str(), header.size())) // header
+                        break;
+                    if (!sink.write(reinterpret_cast<const char*>(buf.data()), buf.size())) // jpeg data
+                        break;
+                    if (!sink.write("\r\n", 2)) // trailing newline
                         break;
                 }
                 return true;

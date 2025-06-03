@@ -18,8 +18,11 @@
 namespace {
 
 std::vector<float> compute_feature_embedding(ncnn::Net& mobilefacenet, const cv::Mat& face) {
-    ncnn::Mat in = ncnn::Mat::from_pixels(face.data, ncnn::Mat::PIXEL_RGB, 112, 112);
-
+    ncnn::Mat in = ncnn::Mat::from_pixels(face.data, ncnn::Mat::PIXEL_BGR2RGB, 112, 112);
+    const float mean_vals[3] = {127.5f, 127.5f, 127.5f};
+    const float norm_vals[3] = {1.f / 128.f, 1.f / 128.f, 1.f / 128.f};
+    in.substract_mean_normalize(mean_vals, norm_vals);
+    
     ncnn::Extractor ex = mobilefacenet.create_extractor();
     ex.set_light_mode(true);
     ex.input("data", in);
@@ -118,11 +121,10 @@ void embedding_thread_func(void) {
             face = g_embedding_buffer.front();
             g_embedding_buffer.pop();
         }
-        // preprocess
+
+        // preprocess frame
         if (face.cols != 112 || face.rows != 112)
             cv::resize(face, face, cv::Size(112, 112));
-        cv::cvtColor(face, face, cv::COLOR_BGR2RGB);
-        face.convertTo(face, CV_32FC3, 1.0 / 128.0, -127.5 / 128.0);
 
         std::vector<float> embedding = compute_feature_embedding(mobilefacenet_net, face);
         for (int i = 0; i < face_db.size(); ++i) {

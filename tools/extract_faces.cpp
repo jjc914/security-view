@@ -346,6 +346,17 @@ int main(int argc, char** argv) {
             std::cerr << "failed to read image: " << entry.path() << "\n";
             continue;
         }
+        
+        const int target_size = 640;
+        int w = img.cols;
+        int h = img.rows;
+        float scale = std::min(target_size / (float)w, target_size / (float)h);
+        int resized_w = static_cast<int>(w * scale);
+        int resized_h = static_cast<int>(h * scale);
+        int pad_x = (target_size - resized_w) / 2;
+        int pad_y = (target_size - resized_h) / 2;
+        cv::resize(img, img, cv::Size(resized_w, resized_h));
+        cv::copyMakeBorder(img, img, pad_y, target_size - resized_h - pad_y, pad_x, target_size - resized_w - pad_x, cv::BORDER_CONSTANT, cv::Scalar(0,0,0));
 
         std::string rel_path = fs::relative(entry.path(), input_dir).stem().string();
         fs::path image_output_dir = output_dir / rel_path;

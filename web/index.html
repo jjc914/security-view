@@ -23,7 +23,7 @@
             grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
             grid-gap: 1rem;
             grid-column: 1 / 2;
-            grid-row: 1 / 3;
+            grid-row: 1 / 2;
         }
 
         .stream-box {
@@ -75,11 +75,15 @@
 
         <div class="video-streams">
             <div class="stream-box">
-                <h4>Raw Camera Feed</h4>
                 <img src="/video_raw" alt="Raw Video Stream">
             </div>
             <div class="stream-box">
-                <h4>Face Detection</h4>
+                <img src="/video_retina_input" alt="Raw Video Stream">
+            </div>
+            <div class="stream-box">
+                <img src="/video_retina_output" alt="Face Detection Stream">
+            </div>
+            <div class="stream-box">
                 <img src="/video_retina" alt="Face Detection Stream">
             </div>
         </div>

@@ -34,7 +34,9 @@ extern std::queue<cv::Mat> g_embedding_buffer;
 extern std::mutex g_embedding_buffer_mutex;
 
 // debug
-extern cv::Mat g_retina_debug_buffer;
-extern std::mutex g_retina_debug_buffer_mutex;
+extern cv::Mat g_retina_debug_buffer_1;
+extern std::mutex g_retina_debug_buffer_1_mutex;
+extern cv::Mat g_retina_debug_buffer_2;
+extern std::mutex g_retina_debug_buffer_2_mutex;
 
 #endif

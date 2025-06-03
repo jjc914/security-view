@@ -338,6 +338,23 @@ void detection_thread_func(void) {
             if (g_frame.empty()) continue;
             frame = g_frame.clone();
         }
+        
+        // preprocess frame
+        const int target_size = 640;
+        int w = frame.cols;
+        int h = frame.rows;
+        float scale = std::min(target_size / (float)w, target_size / (float)h);
+        int resized_w = static_cast<int>(w * scale);
+        int resized_h = static_cast<int>(h * scale);
+        int pad_x = (target_size - resized_w) / 2;
+        int pad_y = (target_size - resized_h) / 2;
+        cv::resize(frame, frame, cv::Size(resized_w, resized_h));
+        cv::copyMakeBorder(frame, frame, pad_y, target_size - resized_h - pad_y, pad_x, target_size - resized_w - pad_x, cv::BORDER_CONSTANT, cv::Scalar(0,0,0));
+
+        { std::lock_guard<std::mutex> lock(g_retina_debug_buffer_2_mutex);
+            g_retina_debug_buffer_2 = frame.clone();
+        }
+
         // detect faces
         std::vector<FaceObject> detected_faces = retinaface_detect(retinaface_net, frame);
         for (const FaceObject& fo : detected_faces) {
@@ -349,8 +366,8 @@ void detection_thread_func(void) {
             cv::Mat transform = cv::estimateAffinePartial2D(fo.landmarks, reference);
             cv::warpAffine(frame, frame, transform, cv::Size(112, 112), cv::INTER_LINEAR);
 
-            { std::lock_guard<std::mutex> lock(g_retina_debug_buffer_mutex);
-                g_retina_debug_buffer = frame.clone();
+            { std::lock_guard<std::mutex> lock(g_retina_debug_buffer_1_mutex);
+                g_retina_debug_buffer_1 = frame.clone();
             }
             
             // push to embedding buffer

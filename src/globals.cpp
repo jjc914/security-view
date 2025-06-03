@@ -27,5 +27,7 @@ std::queue<cv::Mat> g_embedding_buffer;
 std::mutex g_embedding_buffer_mutex;
 
 // debug
-cv::Mat g_retina_debug_buffer;
-std::mutex g_retina_debug_buffer_mutex;
+cv::Mat g_retina_debug_buffer_1;
+std::mutex g_retina_debug_buffer_1_mutex;
+cv::Mat g_retina_debug_buffer_2;
+std::mutex g_retina_debug_buffer_2_mutex;

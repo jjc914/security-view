@@ -18,7 +18,10 @@ namespace fs = std::filesystem;
 namespace {
 
 std::vector<float> compute_feature_embedding(ncnn::Net& mobilefacenet, const cv::Mat& face) {
-    ncnn::Mat in = ncnn::Mat::from_pixels(face.data, ncnn::Mat::PIXEL_RGB, 112, 112);
+    ncnn::Mat in = ncnn::Mat::from_pixels(face.data, ncnn::Mat::PIXEL_BGR2RGB, 112, 112);
+    const float mean_vals[3] = {127.5f, 127.5f, 127.5f};
+    const float norm_vals[3] = {1.f / 128.f, 1.f / 128.f, 1.f / 128.f};
+    in.substract_mean_normalize(mean_vals, norm_vals);
 
     ncnn::Extractor ex = mobilefacenet.create_extractor();
     ex.set_light_mode(true);
