@@ -23,8 +23,11 @@ std::mutex g_streaming_buffer_mutex;
 std::queue<FrameEntry> g_recording_buffer;
 std::mutex g_recording_buffer_mutex;
 
-std::queue<cv::Mat> g_embedding_buffer;
+std::queue<RetinaResult> g_embedding_buffer;
 std::mutex g_embedding_buffer_mutex;
+
+cv::Mat g_annotated_streaming_buffer;
+std::mutex g_annotated_streaming_buffer_mutex;
 
 // debug
 cv::Mat g_retina_debug_buffer_1;

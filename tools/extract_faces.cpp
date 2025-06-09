@@ -355,8 +355,9 @@ int main(int argc, char** argv) {
         int resized_h = static_cast<int>(h * scale);
         int pad_x = (target_size - resized_w) / 2;
         int pad_y = (target_size - resized_h) / 2;
-        cv::resize(img, img, cv::Size(resized_w, resized_h));
-        cv::copyMakeBorder(img, img, pad_y, target_size - resized_h - pad_y, pad_x, target_size - resized_w - pad_x, cv::BORDER_CONSTANT, cv::Scalar(0,0,0));
+        cv::Mat processed_frame;
+        cv::resize(img, processed_frame, cv::Size(resized_w, resized_h));
+        cv::copyMakeBorder(processed_frame, processed_frame, pad_y, target_size - resized_h - pad_y, pad_x, target_size - resized_w - pad_x, cv::BORDER_CONSTANT, cv::Scalar(0,0,0));
 
         std::string rel_path = fs::relative(entry.path(), input_dir).stem().string();
         fs::path image_output_dir = output_dir / rel_path;
@@ -367,15 +368,25 @@ int main(int argc, char** argv) {
         }
 
         std::cout << "processing image: " << entry.path() << "\n";
-        std::vector<FaceObject> detected_faces = retinaface_detect(retinaface_net, img);
+        std::vector<FaceObject> detected_faces = retinaface_detect(retinaface_net, processed_frame);
         std::cout << "detected " << detected_faces.size() << " faces\n";
 
         fs::create_directories(image_output_dir);
 
         int face_idx = 0;
-        for (const FaceObject& fo : detected_faces) {
+        for (FaceObject& fo : detected_faces) {
             cv::Rect clipped_bbox = fo.rect & cv::Rect(0, 0, img.cols, img.rows);
             if (clipped_bbox.width <= 0 || clipped_bbox.height <= 0) continue;
+
+            // remap to original buffer
+            for (cv::Point2f& pt : fo.landmarks) {
+                pt.x = (pt.x - pad_x) / scale;
+                pt.y = (pt.y - pad_y) / scale;
+            }
+            fo.rect.x = (fo.rect.x - pad_x) / scale;
+            fo.rect.y = (fo.rect.y - pad_y) / scale;
+            fo.rect.width /= scale;
+            fo.rect.height /= scale;
 
             cv::Mat transform = cv::estimateAffinePartial2D(fo.landmarks, reference);
             cv::Mat aligned_face;

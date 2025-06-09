@@ -30,8 +30,11 @@ extern std::mutex g_streaming_buffer_mutex;
 extern std::queue<FrameEntry> g_recording_buffer;
 extern std::mutex g_recording_buffer_mutex;
 
-extern std::queue<cv::Mat> g_embedding_buffer;
+extern std::queue<RetinaResult> g_embedding_buffer;
 extern std::mutex g_embedding_buffer_mutex;
+
+extern cv::Mat g_annotated_streaming_buffer;
+extern std::mutex g_annotated_streaming_buffer_mutex;
 
 // debug
 extern cv::Mat g_retina_debug_buffer_1;

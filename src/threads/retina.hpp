@@ -313,14 +313,6 @@ void detection_thread_func(void) {
     g_exit_detection_thread.store(false);
     std::cout << "[retina] info: starting face detection thread.\n";
 
-    static const std::array<cv::Point2f, 5> reference = {
-        cv::Point2f(38.2946f, 51.6963f),
-        cv::Point2f(73.5318f, 51.5014f),
-        cv::Point2f(56.0252f, 71.7366f),
-        cv::Point2f(41.5493f, 92.3655f),
-        cv::Point2f(70.7299f, 92.2041f)
-    };
-
     ncnn::Net retinaface_net;
     retinaface_net.opt.use_vulkan_compute = true;
     retinaface_net.opt.num_threads = 4;
@@ -348,33 +340,40 @@ void detection_thread_func(void) {
         int resized_h = static_cast<int>(h * scale);
         int pad_x = (target_size - resized_w) / 2;
         int pad_y = (target_size - resized_h) / 2;
-        cv::resize(frame, frame, cv::Size(resized_w, resized_h));
-        cv::copyMakeBorder(frame, frame, pad_y, target_size - resized_h - pad_y, pad_x, target_size - resized_w - pad_x, cv::BORDER_CONSTANT, cv::Scalar(0,0,0));
+        cv::Mat processed_frame;
+        cv::resize(frame, processed_frame, cv::Size(resized_w, resized_h));
+        cv::copyMakeBorder(processed_frame, processed_frame, pad_y, target_size - resized_h - pad_y, pad_x, target_size - resized_w - pad_x, cv::BORDER_CONSTANT, cv::Scalar(0,0,0));
 
         { std::lock_guard<std::mutex> lock(g_retina_debug_buffer_2_mutex);
-            g_retina_debug_buffer_2 = frame.clone();
+            g_retina_debug_buffer_2 = processed_frame.clone();
         }
 
         // detect faces
-        std::vector<FaceObject> detected_faces = retinaface_detect(retinaface_net, frame);
-        for (const FaceObject& fo : detected_faces) {
+        std::vector<FaceObject> detected_faces = retinaface_detect(retinaface_net, processed_frame);
+
+        for (int i = 0; i < detected_faces.size(); ++i) {
             // skip invalid
-            cv::Rect clipped_bbox = fo.rect & cv::Rect(0, 0, frame.cols, frame.rows);
+            cv::Rect clipped_bbox = detected_faces[i].rect & cv::Rect(0, 0, processed_frame.cols, processed_frame.rows);
             if (clipped_bbox.width <= 0 || clipped_bbox.height <= 0) continue;
 
-            // align face
-            cv::Mat transform = cv::estimateAffinePartial2D(fo.landmarks, reference);
-            cv::warpAffine(frame, frame, transform, cv::Size(112, 112), cv::INTER_LINEAR);
-
-            { std::lock_guard<std::mutex> lock(g_retina_debug_buffer_1_mutex);
-                g_retina_debug_buffer_1 = frame.clone();
+            // remap to original buffer
+            for (cv::Point2f& pt : detected_faces[i].landmarks) {
+                pt.x = (pt.x - pad_x) / scale;
+                pt.y = (pt.y - pad_y) / scale;
             }
-            
-            // push to embedding buffer
-            { std::lock_guard<std::mutex> lock(g_embedding_buffer_mutex);
-                g_embedding_buffer.push(std::move(frame));
-            }
+            detected_faces[i].rect.x = (detected_faces[i].rect.x - pad_x) / scale;
+            detected_faces[i].rect.y = (detected_faces[i].rect.y - pad_y) / scale;
+            detected_faces[i].rect.width /= scale;
+            detected_faces[i].rect.height /= scale;
         }
+        
+        RetinaResult result;
+        result.frame = std::move(frame);
+        result.faces = std::move(detected_faces);
+        { std::lock_guard<std::mutex> lock(g_embedding_buffer_mutex);
+            g_embedding_buffer.push(std::move(result));
+        }
+
     }
 
     std::cout << "[retina] info: exiting detection thread.\n";

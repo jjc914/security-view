@@ -17,6 +17,11 @@ struct FaceObject {
     std::array<cv::Point2f, 5> landmarks;
 };
 
+struct RetinaResult {
+    cv::Mat frame;
+    std::vector<FaceObject> faces;
+};
+
 struct EmbeddingEntry {
     std::string name;
     std::vector<float> embedding;

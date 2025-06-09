@@ -19,9 +19,6 @@ namespace {
 
 std::vector<float> compute_feature_embedding(ncnn::Net& mobilefacenet, const cv::Mat& face) {
     ncnn::Mat in = ncnn::Mat::from_pixels(face.data, ncnn::Mat::PIXEL_BGR2RGB, 112, 112);
-    const float mean_vals[3] = {127.5f, 127.5f, 127.5f};
-    const float norm_vals[3] = {1.f / 128.f, 1.f / 128.f, 1.f / 128.f};
-    in.substract_mean_normalize(mean_vals, norm_vals);
     
     ncnn::Extractor ex = mobilefacenet.create_extractor();
     ex.set_light_mode(true);
@@ -52,7 +49,7 @@ std::vector<EmbeddingEntry> load_database_binary(const std::string& path) {
     std::ifstream in(path, std::ios::binary);
 
     if (!in) {
-        std::cerr << "Error: could not open file for reading: " << path << "\n";
+        std::cerr << "[embed] error: could not open file " << path << std::endl;
         return database;
     }
 
@@ -60,19 +57,29 @@ std::vector<EmbeddingEntry> load_database_binary(const std::string& path) {
         EmbeddingEntry entry;
         uint32_t name_len = 0, embed_len = 0;
 
-        // Read name length and name
+        // read name length and name
         in.read(reinterpret_cast<char*>(&name_len), sizeof(name_len));
         if (in.eof()) break;
 
         entry.name.resize(name_len);
         in.read(&entry.name[0], name_len);
 
-        // Read embedding length and values
+        // read embedding length and values
         in.read(reinterpret_cast<char*>(&embed_len), sizeof(embed_len));
         entry.embedding.resize(embed_len);
         in.read(reinterpret_cast<char*>(entry.embedding.data()), embed_len * sizeof(float));
 
-        // Add to DB
+        // normalize
+        float norm = 0.f;
+        for (float val : entry.embedding) {
+            norm += val * val;
+        }
+        norm = std::sqrt(norm);
+        for (float& val : entry.embedding) {
+            val /= norm;
+        }
+
+        // add to db
         database.push_back(std::move(entry));
     }
 
@@ -99,6 +106,14 @@ void embedding_thread_func(void) {
     g_exit_embedding_thread.store(false);
     std::cout << "[embed] info: starting facial feature embedding thread.\n";
 
+    static const std::array<cv::Point2f, 5> reference = {
+        cv::Point2f(38.2946f, 51.6963f),
+        cv::Point2f(73.5318f, 51.5014f),
+        cv::Point2f(56.0252f, 71.7366f),
+        cv::Point2f(41.5493f, 92.3655f),
+        cv::Point2f(70.7299f, 92.2041f)
+    };
+
     ncnn::Net mobilefacenet_net;
     std::cout << "[detect] info: found " << ncnn::get_gpu_count() << " gpus.\n" << std::endl;
     mobilefacenet_net.opt.use_vulkan_compute = true;
@@ -115,23 +130,37 @@ void embedding_thread_func(void) {
     std::vector<EmbeddingEntry> face_db = load_database_binary("res/face_db.bin");
 
     while (!g_exit_embedding_thread.load()) {
-        cv::Mat face;
+        RetinaResult retina;
         { std::lock_guard<std::mutex> lock(g_embedding_buffer_mutex);
             if (g_embedding_buffer.empty()) continue;
-            face = g_embedding_buffer.front();
+            retina = g_embedding_buffer.front();
             g_embedding_buffer.pop();
         }
 
-        // preprocess frame
-        if (face.cols != 112 || face.rows != 112)
-            cv::resize(face, face, cv::Size(112, 112));
+        cv::Mat annotated = retina.frame.clone();
+        for (FaceObject& fo : retina.faces) {
+            // align face
+            cv::Mat transform = cv::estimateAffinePartial2D(fo.landmarks, reference);
+            cv::Mat aligned;
+            cv::warpAffine(retina.frame, aligned, transform, cv::Size(112, 112), cv::INTER_LINEAR);
 
-        std::vector<float> embedding = compute_feature_embedding(mobilefacenet_net, face);
-        for (int i = 0; i < face_db.size(); ++i) {
-            if (dot(embedding, face_db[i].embedding) > 0.5f) {
-                // match
-                std::cout << "recognized " << face_db[i].name << "!" << std::endl;
+            if (aligned.cols != 112 || aligned.rows != 112)
+                cv::resize(aligned, aligned, cv::Size(112, 112));
+
+            std::vector<float> embedding = compute_feature_embedding(mobilefacenet_net, aligned);
+
+            int match_count = 0;
+            for (int i = 0; i < face_db.size(); ++i) {
+                if (dot(embedding, face_db[i].embedding) > 0.7f) {
+                    // match
+                    ++match_count;
+                }
             }
+            cv::rectangle(annotated, fo.rect, cv::Scalar(0, 255, 0), 2);
+        }
+
+        { std::lock_guard<std::mutex> lock(g_annotated_streaming_buffer_mutex);
+            g_annotated_streaming_buffer = std::move(annotated);
         }
     }
 

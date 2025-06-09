@@ -35,6 +35,13 @@ void server_thread_func(void) {
             std::cerr << "Warning: could not load fallback image from res/dc.png\n";
         }
 
+        if (fallback_buf.empty()) {
+            std::cerr << "[server] error: fallback image encoding failed or file was unreadable.\n";
+            res.status = 500;
+            res.set_content("Fallback image not loaded or invalid.", "text/plain");
+            return;
+        }
+
         res.set_content_provider(
             "multipart/x-mixed-replace; boundary=frame",
             [&](size_t offset, httplib::DataSink &sink) -> bool {
@@ -51,12 +58,15 @@ void server_thread_func(void) {
                             frame = g_streaming_buffer.clone();
                     }
 
-                    if (!frame.empty()) {
-                        cv::imencode(".jpg", frame, buf, params);
+                    if (frame.empty()) {
+                        buf = fallback_buf;
                     } else {
-                        buf = fallback_buf; // use fallback image
+                        bool ok = cv::imencode(".jpg", frame, buf, params);
+                        if (!ok || buf.empty()) {
+                            std::cerr << "[server] warning: frame encoding failed, falling back.\n";
+                            buf = fallback_buf;
+                        }
                     }
-                    if (buf.empty()) continue;
 
                     std::string header = "--frame\r\nContent-Type: image/jpeg\r\nContent-Length: " +
                                         std::to_string(buf.size()) + "\r\n\r\n";
@@ -84,6 +94,13 @@ void server_thread_func(void) {
             std::cerr << "Warning: could not load fallback image from res/dc.png\n";
         }
 
+        if (fallback_buf.empty()) {
+            std::cerr << "[server] error: fallback image encoding failed or file was unreadable.\n";
+            res.status = 500;
+            res.set_content("Fallback image not loaded or invalid.", "text/plain");
+            return;
+        }
+
         res.set_content_provider(
             "multipart/x-mixed-replace; boundary=frame",
             [&](size_t offset, httplib::DataSink &sink) -> bool {
@@ -100,12 +117,15 @@ void server_thread_func(void) {
                             frame = g_retina_debug_buffer_1.clone();
                     }
 
-                    if (!frame.empty()) {
-                        cv::imencode(".jpg", frame, buf, params);
+                    if (frame.empty()) {
+                        buf = fallback_buf;
                     } else {
-                        buf = fallback_buf; // use fallback image
+                        bool ok = cv::imencode(".jpg", frame, buf, params);
+                        if (!ok || buf.empty()) {
+                            std::cerr << "[server] warning: frame encoding failed, falling back.\n";
+                            buf = fallback_buf;
+                        }
                     }
-                    if (buf.empty()) continue;
 
                     std::string header = "--frame\r\nContent-Type: image/jpeg\r\nContent-Length: " +
                                         std::to_string(buf.size()) + "\r\n\r\n";
@@ -133,6 +153,13 @@ void server_thread_func(void) {
             std::cerr << "Warning: could not load fallback image from res/dc.png\n";
         }
 
+        if (fallback_buf.empty()) {
+            std::cerr << "[server] error: fallback image encoding failed or file was unreadable.\n";
+            res.status = 500;
+            res.set_content("Fallback image not loaded or invalid.", "text/plain");
+            return;
+        }
+
         res.set_content_provider(
             "multipart/x-mixed-replace; boundary=frame",
             [&](size_t offset, httplib::DataSink &sink) -> bool {
@@ -149,12 +176,74 @@ void server_thread_func(void) {
                             frame = g_retina_debug_buffer_2.clone();
                     }
 
-                    if (!frame.empty()) {
-                        cv::imencode(".jpg", frame, buf, params);
+                    if (frame.empty()) {
+                        buf = fallback_buf;
                     } else {
-                        buf = fallback_buf; // use fallback image
+                        bool ok = cv::imencode(".jpg", frame, buf, params);
+                        if (!ok || buf.empty()) {
+                            std::cerr << "[server] warning: frame encoding failed, falling back.\n";
+                            buf = fallback_buf;
+                        }
                     }
-                    if (buf.empty()) continue;
+
+                    std::string header = "--frame\r\nContent-Type: image/jpeg\r\nContent-Length: " +
+                                        std::to_string(buf.size()) + "\r\n\r\n";
+                    if (!sink.write(header.c_str(), header.size())) // header
+                        break;
+                    if (!sink.write(reinterpret_cast<const char*>(buf.data()), buf.size())) // jpeg data
+                        break;
+                    if (!sink.write("\r\n", 2)) // trailing newline
+                        break;
+                }
+                return true;
+            }
+        );
+    });
+
+    server.Get("/video_annotated", [&](const httplib::Request& req, httplib::Response& res) {
+        res.set_header("Content-Type", "multipart/x-mixed-replace; boundary=frame");
+
+        cv::Mat fallback_img = cv::imread("web/dc.png");
+        std::vector<uchar> fallback_buf;
+        std::vector<int> params = { cv::IMWRITE_JPEG_QUALITY, 80 };
+        if (!fallback_img.empty()) {
+            cv::imencode(".jpg", fallback_img, fallback_buf, params);
+        } else {
+            std::cerr << "Warning: could not load fallback image from res/dc.png\n";
+        }
+
+        if (fallback_buf.empty()) {
+            std::cerr << "[server] error: fallback image encoding failed or file was unreadable.\n";
+            res.status = 500;
+            res.set_content("Fallback image not loaded or invalid.", "text/plain");
+            return;
+        }
+
+        res.set_content_provider(
+            "multipart/x-mixed-replace; boundary=frame",
+            [&](size_t offset, httplib::DataSink &sink) -> bool {
+                // write data
+                std::vector<uchar> buf;
+                std::vector<int> params = { cv::IMWRITE_JPEG_QUALITY, 80 };
+
+                while (sink.is_writable()) {
+                    if (g_exit_server_thread.load()) break;
+                    
+                    cv::Mat frame;
+                    { std::lock_guard<std::mutex> lock(g_annotated_streaming_buffer_mutex);
+                        if (!g_annotated_streaming_buffer.empty())
+                            frame = g_annotated_streaming_buffer.clone();
+                    }
+
+                    if (frame.empty()) {
+                        buf = fallback_buf;
+                    } else {
+                        bool ok = cv::imencode(".jpg", frame, buf, params);
+                        if (!ok || buf.empty()) {
+                            std::cerr << "[server] warning: frame encoding failed, falling back.\n";
+                            buf = fallback_buf;
+                        }
+                    }
 
                     std::string header = "--frame\r\nContent-Type: image/jpeg\r\nContent-Length: " +
                                         std::to_string(buf.size()) + "\r\n\r\n";
