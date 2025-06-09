@@ -8,6 +8,9 @@
 #include <atomic>
 #include <mutex>
 #include <queue>
+#include <string>
+#include <unordered_map>
+#include <chrono>
 
 extern std::atomic<int> g_frame_count;
 extern std::atomic<int> g_fps;
@@ -35,6 +38,9 @@ extern std::mutex g_embedding_buffer_mutex;
 
 extern cv::Mat g_annotated_streaming_buffer;
 extern std::mutex g_annotated_streaming_buffer_mutex;
+
+extern std::unordered_map<std::string, std::chrono::time_point<std::chrono::steady_clock>> g_valid_sessions;
+extern std::mutex g_valid_sessions_mutex;
 
 // debug
 extern cv::Mat g_retina_debug_buffer_1;

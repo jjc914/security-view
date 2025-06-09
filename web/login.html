@@ -11,23 +11,25 @@
 </head>
 <body>
     <h2>Camera Login</h2>
-    <input type="password" id="password" placeholder="Enter password">
+    <input type="text" id="usr" placeholder="Enter username">
+    <input type="password" id="pwd" placeholder="Enter password">
     <button id="loginButton">Login</button>
     <p id="error" class="error"></p>
 
     <script>
         document.getElementById("loginButton").addEventListener("click", function() {
-            const password = document.getElementById("password").value;
+            const usr = document.getElementById("pwd").value;
+            const pwd = document.getElementById("usr").value;
             fetch("/login", {
                 method: "POST",
                 headers: {
                     "Content-Type": "application/x-www-form-urlencoded"
                 },
-                body: "password=" + encodeURIComponent(password)
+                body: "usr=" + encodeURIComponent(usr) + "&pwd=" + encodeURIComponent(pwd)
             })
             .then(response => {
                 if (response.redirected) {
-                    // If login success, redirect to main page
+                    // uf login success, redirect to main page
                     window.location.href = response.url;
                 } else {
                     return response.text().then(text => {

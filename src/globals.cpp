@@ -1,7 +1,5 @@
 #include "globals.hpp"
 
-#include <atomic>
-
 std::atomic<int> g_frame_count(0);
 std::atomic<int> g_fps(0);
 std::atomic<bool> g_should_stream(false);
@@ -28,6 +26,9 @@ std::mutex g_embedding_buffer_mutex;
 
 cv::Mat g_annotated_streaming_buffer;
 std::mutex g_annotated_streaming_buffer_mutex;
+
+std::unordered_map<std::string, std::chrono::time_point<std::chrono::steady_clock>> g_valid_sessions;
+std::mutex g_valid_sessions_mutex;
 
 // debug
 cv::Mat g_retina_debug_buffer_1;
