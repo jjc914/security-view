@@ -19,8 +19,8 @@ void server_thread_func(void) {
     g_exit_server_thread.store(false);
     std::cout << "[server] info: starting server listening thread.\n";
 
-    std::string ip = "0.0.0.0";
-    uint16_t port = 8080;
+    std::string IP = "0.0.0.0";
+    uint16_t PORT = 8080;
     httplib::Server server;
 
     server.Get("/video_raw", [&](const httplib::Request& req, httplib::Response& res) {
@@ -267,13 +267,13 @@ void server_thread_func(void) {
         g_should_stream.store(!g_should_stream.load());
     });
 
-    int bind_result = server.bind_to_port(ip, port);
+    int bind_result = server.bind_to_port(IP, PORT);
     if (bind_result <= 0) {
-        std::cerr << "[server] error: failed to bind to port " << port << "\n";
+        std::cerr << "[server] error: failed to bind to port " << PORT << "\n";
         return;
     }
 
-    std::cout << "[server] info: server bound on http://" << ip << ":" << port << "\n";
+    std::cout << "[server] info: server bound on http://" << IP << ":" << PORT << "\n";
     
     std::thread server_thread([&]() {
         server.listen_after_bind();
