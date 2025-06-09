@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Login</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 50px; }
+        input { margin: 5px; padding: 8px; width: 200px; }
+        button { padding: 8px 16px; }
+        .error { color: red; }
+    </style>
+</head>
+<body>
+    <h2>Camera Login</h2>
+    <input type="password" id="password" placeholder="Enter password">
+    <button id="loginButton">Login</button>
+    <p id="error" class="error"></p>
+
+    <script>
+        document.getElementById("loginButton").addEventListener("click", function() {
+            const password = document.getElementById("password").value;
+            fetch("/login", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/x-www-form-urlencoded"
+                },
+                body: "password=" + encodeURIComponent(password)
+            })
+            .then(response => {
+                if (response.redirected) {
+                    // If login success, redirect to main page
+                    window.location.href = response.url;
+                } else {
+                    return response.text().then(text => {
+                        document.getElementById("error").textContent = text;
+                    });
+                }
+            })
+            .catch(err => {
+                document.getElementById("error").textContent = "Error: " + err;
+            });
+        });
+    </script>
+</body>
+</html>

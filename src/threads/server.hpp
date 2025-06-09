@@ -19,9 +19,49 @@ void server_thread_func(void) {
     g_exit_server_thread.store(false);
     std::cout << "[server] info: starting server listening thread.\n";
 
-    std::string IP = "0.0.0.0";
-    uint16_t PORT = 8080;
+    const std::string ADMIN_USERNAME = "admin";
+    const std::string ADMIN_PASSWORD = "admin";
+
+    const std::string IP = "0.0.0.0";
+    const uint16_t PORT = 8080;
     httplib::Server server;
+
+    server.Get("/", [](const httplib::Request &req, httplib::Response &res) {
+        res.set_content(read_file("web/index.html"), "text/html");
+    });
+
+    server.Get("/login", [&](const httplib::Request& req, httplib::Response& res) {
+        res.set_content(read_file("web/login.html"), "text/html");
+    });
+
+    svr.Post("/login", [&](const httplib::Request& req, httplib::Response& res) {
+        auto param_it = req.params.find("pwd");
+        if (param_it != req.params.end()) {
+            const std::string& password = param_it->second;
+            if (password == ADMIN_PASSWORD) {
+                // successful login
+                std::string token = generate_session_token();
+                {
+                    std::lock_guard<std::mutex> lock(session_mutex);
+                    valid_sessions.insert(token);
+                }
+
+                // set session cookie and redirect
+                res.set_header("Set-Cookie", "session=" + token + "; HttpOnly; Path=/");
+                res.set_redirect("/"); // redirect to main page
+                return;
+            }
+        }
+
+        // Login failed
+        res.status = 401;
+        res.set_content("Invalid password", "text/plain");
+    });
+
+
+    server.Post("/togglestream", [](const httplib::Request& req, httplib::Response& res) {
+        g_should_stream.store(!g_should_stream.load());
+    });
 
     server.Get("/video_raw", [&](const httplib::Request& req, httplib::Response& res) {
         res.set_header("Content-Type", "multipart/x-mixed-replace; boundary=frame");
@@ -257,14 +297,6 @@ void server_thread_func(void) {
                 return true;
             }
         );
-    });
-
-    server.Get("/", [](const httplib::Request &req, httplib::Response &res) {
-        res.set_content(read_file("web/index.html"), "text/html");
-    });
-
-    server.Post("/togglestream", [](const httplib::Request& req, httplib::Response& res) {
-        g_should_stream.store(!g_should_stream.load());
     });
 
     int bind_result = server.bind_to_port(IP, PORT);
