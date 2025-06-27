@@ -1,5 +1,5 @@
-#ifndef RETINA_HPP
-#define RETINA_HPP
+#ifndef DETECTION_HPP
+#define DETECTION_HPP
 
 #include <opencv2/opencv.hpp>
 
@@ -196,7 +196,9 @@ static void nms_sorted_bboxes(const std::vector<FaceObject>& faceobjects, std::v
     }
 }
 
-std::vector<FaceObject> retinaface_detect(ncnn::Net& retinaface, const cv::Mat& frame) {
+std::vector<FaceObject> retinaface_detect(const cv::Mat& frame) {
+    ncnn::Extractor ex = g_retinaface_net.create_extractor();
+
     const float prob_threshold = 0.8f;
     const float nms_threshold = 0.4f;
 
@@ -206,7 +208,6 @@ std::vector<FaceObject> retinaface_detect(ncnn::Net& retinaface, const cv::Mat& 
 
     ncnn::Mat in = ncnn::Mat::from_pixels(frame.data, ncnn::Mat::PIXEL_BGR2RGB, img_w, img_h);
 
-    ncnn::Extractor ex = retinaface.create_extractor();
     ex.set_light_mode(true);
     ex.input("data", in);
 
@@ -304,25 +305,54 @@ std::vector<FaceObject> retinaface_detect(ncnn::Net& retinaface, const cv::Mat& 
         faceobjects[i].rect.height = y1 - y0;
     }
 
-    return std::move(faceobjects);
+    return faceobjects;
 }
 
+}
+
+std::vector<FaceObject> detect_faces(const cv::Mat& frame) {
+    // preprocess frame
+    const int target_size = 640;
+    int w = frame.cols;
+    int h = frame.rows;
+    float scale = std::min(target_size / (float)w, target_size / (float)h);
+    int resized_w = static_cast<int>(w * scale);
+    int resized_h = static_cast<int>(h * scale);
+    int pad_x = (target_size - resized_w) / 2;
+    int pad_y = (target_size - resized_h) / 2;
+    cv::Mat processed_frame;
+    cv::resize(frame, processed_frame, cv::Size(resized_w, resized_h));
+    cv::copyMakeBorder(processed_frame, processed_frame, pad_y, target_size - resized_h - pad_y, pad_x, target_size - resized_w - pad_x, cv::BORDER_CONSTANT, cv::Scalar(0,0,0));
+
+    // detect faces
+    std::vector<FaceObject> detected_faces = retinaface_detect(processed_frame);
+
+    // remap boxes back to original image space
+    for (auto& face : detected_faces) {
+        float x0 = (face.rect.x - pad_x) / scale;
+        float y0 = (face.rect.y - pad_y) / scale;
+        float x1 = (face.rect.x + face.rect.width - pad_x) / scale;
+        float y1 = (face.rect.y + face.rect.height - pad_y) / scale;
+
+        // clip to original image size
+        x0 = std::max(std::min(x0, (float)w - 1), 0.f);
+        y0 = std::max(std::min(y0, (float)h - 1), 0.f);
+        x1 = std::max(std::min(x1, (float)w - 1), 0.f);
+        y1 = std::max(std::min(y1, (float)h - 1), 0.f);
+
+        face.rect.x = x0;
+        face.rect.y = y0;
+        face.rect.width = x1 - x0;
+        face.rect.height = y1 - y0;
+    }
+    return detected_faces;
 }
 
 void detection_thread_func(void) {
     g_exit_detection_thread.store(false);
     std::cout << "[retina] info: starting face detection thread.\n";
-
-    ncnn::Net retinaface_net;
-    retinaface_net.opt.use_vulkan_compute = true;
-    retinaface_net.opt.num_threads = 4;
-    // https://github.com/nihui/ncnn-assets/tree/master/models
-    if (retinaface_net.load_param("models/retinaface/mnet.25-opt.param") != 0 ||
-            retinaface_net.load_model("models/retinaface/mnet.25-opt.bin") != 0) {
-        std::cerr << "[retina] error: failed to load RetinaFace model." << std::endl;
-        return;
-    }
-    std::cout << "[retina] info: RetinaFace model loaded successfully.\n";
+    
+    ncnn::Extractor extractor = g_retinaface_net.create_extractor();
 
     while (!g_exit_detection_thread.load()) {
         cv::Mat frame;
@@ -331,49 +361,15 @@ void detection_thread_func(void) {
             frame = g_frame.clone();
         }
         
-        // preprocess frame
-        const int target_size = 640;
-        int w = frame.cols;
-        int h = frame.rows;
-        float scale = std::min(target_size / (float)w, target_size / (float)h);
-        int resized_w = static_cast<int>(w * scale);
-        int resized_h = static_cast<int>(h * scale);
-        int pad_x = (target_size - resized_w) / 2;
-        int pad_y = (target_size - resized_h) / 2;
-        cv::Mat processed_frame;
-        cv::resize(frame, processed_frame, cv::Size(resized_w, resized_h));
-        cv::copyMakeBorder(processed_frame, processed_frame, pad_y, target_size - resized_h - pad_y, pad_x, target_size - resized_w - pad_x, cv::BORDER_CONSTANT, cv::Scalar(0,0,0));
-
-        { std::lock_guard<std::mutex> lock(g_retina_debug_buffer_2_mutex);
-            g_retina_debug_buffer_2 = processed_frame.clone();
-        }
-
-        // detect faces
-        std::vector<FaceObject> detected_faces = retinaface_detect(retinaface_net, processed_frame);
-
-        for (int i = 0; i < detected_faces.size(); ++i) {
-            // skip invalid
-            cv::Rect clipped_bbox = detected_faces[i].rect & cv::Rect(0, 0, processed_frame.cols, processed_frame.rows);
-            if (clipped_bbox.width <= 0 || clipped_bbox.height <= 0) continue;
-
-            // remap to original buffer
-            for (cv::Point2f& pt : detected_faces[i].landmarks) {
-                pt.x = (pt.x - pad_x) / scale;
-                pt.y = (pt.y - pad_y) / scale;
-            }
-            detected_faces[i].rect.x = (detected_faces[i].rect.x - pad_x) / scale;
-            detected_faces[i].rect.y = (detected_faces[i].rect.y - pad_y) / scale;
-            detected_faces[i].rect.width /= scale;
-            detected_faces[i].rect.height /= scale;
-        }
+        std::vector<FaceObject> detected_faces = detect_faces(frame);
         
-        RetinaResult result;
+        DetectionResult result;
         result.frame = std::move(frame);
         result.faces = std::move(detected_faces);
         { std::lock_guard<std::mutex> lock(g_embedding_buffer_mutex);
             g_embedding_buffer.push(std::move(result));
         }
-
+        g_embedding_buffer_cv.notify_one();
     }
 
     std::cout << "[retina] info: exiting detection thread.\n";

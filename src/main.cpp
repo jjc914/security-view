@@ -3,8 +3,9 @@
 #include "utils.hpp"
 #include "threads/fps.hpp"
 #include "threads/server.hpp"
+#include "threads/db.hpp"
 #include "threads/recording.hpp"
-#include "threads/retina.hpp"
+#include "threads/detection.hpp"
 #include "threads/embedding.hpp"
 
 #include <iostream>
@@ -49,12 +50,36 @@ int main() {
     std::signal(SIGINT, signal_handler);
     std::signal(SIGTERM, signal_handler);
 
+    // init networks
+    std::cout << "[main] info: found " << ncnn::get_gpu_count() << " gpus.\n";
+
+    g_retinaface_net.opt.use_vulkan_compute = true;
+    g_retinaface_net.opt.num_threads = 4;
+    // https://github.com/nihui/ncnn-assets/tree/master/models
+    if (g_retinaface_net.load_param("models/retinaface/mnet.25-opt.param") != 0 ||
+            g_retinaface_net.load_model("models/retinaface/mnet.25-opt.bin") != 0) {
+        std::cerr << "[main] error: failed to load RetinaFace model." << std::endl;
+        return 0;
+    }
+    std::cout << "[main] info: RetinaFace model loaded successfully.\n";
+
+    g_mobilefacenet_net.opt.use_vulkan_compute = true;
+    g_mobilefacenet_net.opt.num_threads = 4;
+    // https://github.com/liguiyuan/mobilefacenet-ncnn/tree/master/models
+    if (g_mobilefacenet_net.load_param("models/mobilefacenet/mobilefacenet.param") != 0 ||
+            g_mobilefacenet_net.load_model("models/mobilefacenet/mobilefacenet.bin") != 0) {
+        std::cerr << "[main] error: failed to load MobileFaceNet model." << std::endl;
+        return 0;
+    }
+    std::cout << "[main] info: MobileFaceNet model loaded successfully.\n";
+
     // start threads
-    std::thread server_thread = std::thread(server_thread_func);
     std::thread fps_thread = std::thread(fps_thread_func);
+    std::thread db_thread = std::thread(db_thread_func);
     std::thread recording_thread = std::thread(recording_thread_func, cv::Size(frame_width, frame_height));
     std::thread detection_thread = std::thread(detection_thread_func);
     std::thread embedding_thread = std::thread(embedding_thread_func);
+    std::thread server_thread = std::thread(server_thread_func);
 
     std::cout << "[main] info: starting frame recording.\n";
     cv::Mat frame, gray;
@@ -97,21 +122,29 @@ int main() {
     video_capture.release();
     cv::destroyAllWindows();
 
+    g_exit_server_thread.store(true);
+    server_thread.join();
+    
     g_exit_embedding_thread.store(true);
+    g_embedding_buffer_cv.notify_one();
     embedding_thread.join();
     
     g_exit_detection_thread.store(true);
     detection_thread.join();
-
+    
     g_should_record.store(false);
     g_exit_recording_thread.store(true);
     recording_thread.join();
-
+    
+    g_exit_db_thread.store(true);
+    g_sql_queue_cv.notify_one();
+    db_thread.join();
+    
     g_exit_fps_thread.store(true);
     fps_thread.join();
-
-    g_exit_server_thread.store(true);
-    server_thread.join();
+    
+    g_retinaface_net.clear();
+    g_mobilefacenet_net.clear();
 
     return 0;
 }

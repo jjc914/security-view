@@ -1,0 +1,16 @@
+:root {
+    --background-color: #f0f0f0;
+    --foreground-color: white;
+    --outline-color: #ccc;
+    --error-color: red;
+    --font-family: Arial, sans-serif;
+
+    --button1-color: #0f0f0f;
+    --button1-color-hover: #777;
+    --button1-color-active: #444;
+}
+
+body {
+    font-family: var(--font-family);
+    background-color: var(--background-color);
+}

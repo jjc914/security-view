@@ -1,46 +1,21 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Login</title>
-    <style>
-        body { font-family: Arial, sans-serif; margin: 50px; }
-        input { margin: 5px; padding: 8px; width: 200px; }
-        button { padding: 8px 16px; }
-        .error { color: red; }
-    </style>
+    <link rel="stylesheet" href="css/style.css" />
+    <link rel="stylesheet" href="css/login.css" />
 </head>
 <body>
-    <h2>Camera Login</h2>
-    <input type="text" id="usr" placeholder="Enter username">
-    <input type="password" id="pwd" placeholder="Enter password">
-    <button id="loginButton">Login</button>
-    <p id="error" class="error"></p>
-
-    <script>
-        document.getElementById("loginButton").addEventListener("click", function() {
-            const usr = document.getElementById("pwd").value;
-            const pwd = document.getElementById("usr").value;
-            fetch("/login", {
-                method: "POST",
-                headers: {
-                    "Content-Type": "application/x-www-form-urlencoded"
-                },
-                body: "usr=" + encodeURIComponent(usr) + "&pwd=" + encodeURIComponent(pwd)
-            })
-            .then(response => {
-                if (response.redirected) {
-                    // uf login success, redirect to main page
-                    window.location.href = response.url;
-                } else {
-                    return response.text().then(text => {
-                        document.getElementById("error").textContent = text;
-                    });
-                }
-            })
-            .catch(err => {
-                document.getElementById("error").textContent = "Error: " + err;
-            });
-        });
-    </script>
+    <div class="login-box">
+        <h2>Login</h2>
+        <form id="loginForm" method="POST" action="/login">
+            <input id="username" type="text" placeholder="Username" required />
+            <input id="password" type="password" placeholder="Password" required />
+            <button type="submit">Login</button>
+        </form>
+    </div>
+    <script src="js/login.js"></script>
 </body>
 </html>

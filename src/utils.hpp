@@ -26,4 +26,23 @@ std::string read_file(const std::string& path) {
     return buffer.str();
 }
 
+bool ends_with(const std::string& value, const std::string& ending) {
+    if (ending.size() > value.size()) return false;
+    return std::equal(ending.rbegin(), ending.rend(), value.rbegin());
+}
+
+
+float dot(const std::vector<float>& a, const std::vector<float>& b) {
+    if (a.size() != b.size()) {
+        std::cerr << "error: dot product vector sizes do not match.\n";
+        return 0;
+    }
+
+    float s = 0.0f;
+    for (size_t i = 0; i < a.size(); ++i) {
+        s += a[i] * b[i];
+    }
+    return s;
+}
+
 #endif

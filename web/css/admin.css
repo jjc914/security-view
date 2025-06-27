@@ -1,0 +1,126 @@
+body {
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+    margin: 0;
+    font-family: var(--font-family);
+    background-color: var(--background-color);
+}
+
+.main {
+    flex: 1;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    position: relative;
+    overflow: hidden;
+}
+
+.controls {
+    padding: 1rem;
+    background-color: var(--foreground-color);
+    border-top: 1px solid var(--outline-color);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.5rem;
+    box-shadow: 0 -2px 5px rgba(0,0,0,0.1);
+}
+
+.controls form {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    align-items: center;
+    justify-content: center;
+}
+
+.controls input[type="file"] {
+    font-family: var(--font-family);
+    border: 1px solid var(--outline-color);
+    padding: 0.5rem;
+    border-radius: 4px;
+}
+
+.controls button {
+    padding: 15px;
+    font-size: 11pt;
+    background-color: var(--button1-color);
+    margin: 8px 0;
+    border: none;
+    color: white;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: background-color 0.05s ease;
+}
+
+.controls button:hover {
+    background-color: var(--button1-color-hover);
+}
+
+.controls button:active {
+    background-color: var(--button1-color-active);
+}
+
+.image-wrapper {
+    position: relative;
+    display: inline-block;
+    max-width: 100%;
+    max-height: 100%;
+    text-align: center;
+}
+
+.image-wrapper img {
+    display: block;
+    max-width: 100%;
+    max-height: 100%;
+    height: auto;
+    width: auto;
+    object-fit: contain;
+}
+
+.face-wrapper {
+    border: 1px solid white;
+}
+
+.dropdown-wrapper {
+    position: absolute;
+    bottom: 100%;
+    left: 0;
+    font-size: 10px;
+    padding: 4px 0px;
+    display: flex;
+    align-items: center;
+    gap: 2px;
+    width: 100%;
+}
+
+.dropdown-wrapper .dropdown {
+    flex: 1;
+    min-width: 20px;
+    max-width: 100px;
+}
+
+.dropdown-wrapper .new-name-input {
+    flex: 2;
+    min-width: 50px;
+    max-width: 200px;
+}
+
+.face-wrapper button {
+    background: transparent;
+    border: none;
+    padding: 0;
+    margin: 0;
+    cursor: pointer;
+}
+
+.face-wrapper button:hover {
+    opacity: 0.3;
+    background-color: rgba(0, 255, 0, 0.3);
+}
+
+.face-wrapper .face-button.selected {
+    opacity: 0.5;
+    background-color: rgba(0, 255, 0, 0.3);
+}

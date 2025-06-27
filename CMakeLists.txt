@@ -9,6 +9,7 @@ set(ncnn_DIR "/home/joshpi/ncnn/build/install/lib/cmake/ncnn")
 find_package(OpenCV REQUIRED)
 find_package(OpenSSL REQUIRED)
 find_package(ncnn REQUIRED)
+find_package (SQLite3 REQUIRED)
 
 add_executable(${PROJECT_NAME} src/main.cpp
     src/globals.hpp src/globals.cpp
@@ -16,12 +17,18 @@ add_executable(${PROJECT_NAME} src/main.cpp
     src/utils.hpp
     src/threads/fps.hpp
     src/threads/server.hpp
+    src/threads/db.hpp
     src/threads/recording.hpp
-    src/threads/retina.hpp
+    src/threads/detection.hpp
     src/threads/embedding.hpp
 )
 
-target_include_directories(${PROJECT_NAME} PRIVATE ${OpenCV_INCLUDE_DIRS} ${OPENSSL_INCLUDE_DIR} vendor/cpp-httplib)
-target_link_libraries(${PROJECT_NAME} PRIVATE ${OpenCV_LIBS} OpenSSL::SSL OpenSSL::Crypto ncnn)
+target_include_directories(${PROJECT_NAME} PRIVATE 
+    ${OpenCV_INCLUDE_DIRS} 
+    ${OPENSSL_INCLUDE_DIR} 
+    vendor/cpp-httplib
+    vendor/json/single_include
+)
+target_link_libraries(${PROJECT_NAME} PRIVATE ${OpenCV_LIBS} OpenSSL::SSL OpenSSL::Crypto ncnn SQLite::SQLite3)
 
 add_subdirectory(tools)

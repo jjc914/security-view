@@ -54,6 +54,7 @@ void recording_thread_func(const cv::Size frame_size) {
                 cv::VideoWriter video_writer = cv::VideoWriter("rec/" + now_str + ".avi", fourcc, fps, frame_size, true);
                 if (!video_writer.isOpened()) {
                     std::cerr << "[rec] error: could not open video writer." << std::endl;
+                    return;
                 }
                 // keep recording until not
                 std::chrono::time_point<std::chrono::steady_clock> last_found_time = first_found_time;
