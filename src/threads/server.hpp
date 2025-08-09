@@ -238,7 +238,7 @@ void server_thread_func(void) {
                     }
                 }
 
-                const float threshold = 0.7f;
+                const float threshold = 0.8f;
                 std::string guess_name = (best_sim > threshold) ? best_guess : "";
 
                 json j_box;
@@ -456,10 +456,11 @@ void server_thread_func(void) {
     });
 
     // web elements
-    server.Get(R"(/(css/.*|js/.*))", [&](const httplib::Request& req, httplib::Response& res) {
+    server.Get(R"(/(css/.*|js/.*|pages/.*))", [&](const httplib::Request& req, httplib::Response& res) {
         std::string path = "web" + req.path;
         std::string content_type = "text/plain";
 
+        if (ends_with(path, ".html")) content_type = "text/html";
         if (ends_with(path, ".css")) content_type = "text/css";
         else if (ends_with(path, ".js")) content_type = "application/javascript";
         else if (ends_with(path, ".png")) content_type = "image/png";
@@ -479,7 +480,7 @@ void server_thread_func(void) {
         return;
     }
 
-    std::cout << "[server] info: server bound on http://" << IP << ":" << PORT << "\n";
+    std::cout << "[server] info: server bound on https://" << IP << ":" << PORT << "\n";
     
     std::thread server_thread([&]() {
         server.listen_after_bind();

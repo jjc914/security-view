@@ -4,19 +4,22 @@
     <meta charset="UTF-8">
     <title>Security Camera View</title>
     <link rel="stylesheet" href="css/style.css">
-    <link rel="stylesheet" href="css/index.css">
 </head>
 <body>
-    <div class="page-container">
-        
+    <div class="sidebar">
+        <h2>Admin Panel</h2>
+        <ul>
+            <li><a href="#dashboard">Dashboard</a></li>
+            <li><a href="#admin">Admin</a></li>
+        </ul>
+        <div class="logout">
+            <button onclick="logout()">Logout</button>
+        </div>
     </div>
-    <!-- <img id="videoStream" src="/video_raw" alt="Camera Stream">
-    <div class="button-bar">
-        <button id="prevButton">⬅️ Previous</button>
-        <span id="streamLabel">Raw Camera</span>
-        <button id="nextButton">Next ➡️</button>
-    </div> -->
 
-    <script src="js/index.js"></script>
+    <div id="main" class="main">
+    </div>
+
+    <script src="js/router.js"></script>
 </body>
 </html>

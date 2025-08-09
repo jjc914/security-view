@@ -13,4 +13,21 @@
 body {
     font-family: var(--font-family);
     background-color: var(--background-color);
+    /* overflow: hidden; */
+    margin: 0;
+}
+
+.main {
+    position: relative;
+    width: auto;
+    height: 100vh;
+    margin-left: 200px;
+}
+
+.sidebar {
+    height: 100%;
+    width: 200px;
+    position: fixed !important;
+    z-index: 1;
+    background-color: white;
 }

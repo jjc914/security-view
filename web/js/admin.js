@@ -5,7 +5,6 @@ const registerButton = document.getElementById('registerFacesButton');
 let detectedBoxes = [];
 let selectedFaces = new Map();
 
-// image resizing
 function resizeImageToMain() {
     const main = document.querySelector('.main');
 
@@ -30,6 +29,32 @@ function resizeImageToMain() {
 
     wrapper.style.width = `${displayWidth}px`;
     wrapper.style.height = `${displayHeight}px`;
+
+    // calculate offsets and scaling for bounding boxes
+    const iw = preview.naturalWidth;
+    const ih = preview.naturalHeight;
+    const ww = wrapper.clientWidth;
+    const wh = wrapper.clientHeight;
+
+    const scale = Math.min(ww / iw, wh / ih);
+    const offsetX = (ww - displayWidth) / 2;
+    const offsetY = (wh - displayHeight) / 2;
+
+    // update bounding boxes and input sizes
+    wrapper.querySelectorAll('.face-wrapper').forEach((faceWrapper, index) => {
+        const box = detectedBoxes[index];
+        if (!box) return;
+
+        const x = offsetX + box.x * scale;
+        const y = offsetY + box.y * scale;
+        const w = box.width * scale;
+        const h = box.height * scale;
+
+        faceWrapper.style.left = `${x}px`;
+        faceWrapper.style.top = `${y}px`;
+        faceWrapper.style.width = `${w}px`;
+        faceWrapper.style.height = `${h}px`;
+    });
 }
 
 window.addEventListener('resize', resizeImageToMain);
@@ -43,6 +68,8 @@ document.getElementById('imageFile').addEventListener('change', function(event) 
     } else {
         preview.src = '';
     }
+    wrapper.querySelectorAll('.face-wrapper').forEach(el => el.remove());
+    console.log("hi");
 });
 
 // on detection submit

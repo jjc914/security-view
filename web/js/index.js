@@ -23,5 +23,4 @@ document.getElementById('nextButton').addEventListener('click', () => {
     updateStream();
 });
 
-// Initialize first stream on page load
 updateStream();
